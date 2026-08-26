@@ -1,4 +1,4 @@
-from setuptools import find_packages, setup
+from setuptools import find_packages, setup  # pyright: ignore[reportMissingModuleSource]
 from typing import List
 
 def get_req(file_path:str)->List[str]:
