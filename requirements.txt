@@ -1,4 +1,7 @@
 pandas
 numpy
 imbalanced-learn
--e .
+matplotlib
+seaborn
+missingno
+#-e .
