@@ -4,4 +4,6 @@ imbalanced-learn
 matplotlib
 seaborn
 missingno
+pyarrow
+fastparquet
 #-e .
