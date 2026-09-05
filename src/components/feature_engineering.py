@@ -27,9 +27,12 @@ class FeatureEngineering:
 
     def aggregate_transactions(self):
         transactions = pd.read_csv(self.config.transactions_path)
+        transactions = transactions.sort_values(['msno', 'transaction_date'])
 
         transanction_agg = transactions.groupby('msno').agg(
             transanction_count = ('msno', 'count'),                      #no. of transactions per user
+            first_transaction_date = ('transaction_date', 'min'),
+            last_transaction_date = ('transaction_date', 'max'),
             last_plan_days = ('payment_plan_days', 'last'),              #the no. of days the last plan was active per user
             last_plan_price = ('plan_list_price', 'last'),               # the last price listed to an user
             avg_amount_paid = ('actual_amount_paid', 'mean'),            # avergae amount paid for plan per user
