@@ -20,6 +20,13 @@ class FeatureEngineering:
     def __init__(self):
         self.config = FeatureEngineeringConfig()
 
+    def get_feb_2017_expirations(self):
+        transactions = pd.read_csv(self.config.transactions_path)
+        return transactions[
+            (transactions['membership_expire_date'] >= 20170201) &
+            (transactions['membership_expire_date'] <= 20170228)
+            ].groupby('msno')['membership_expire_date'].max().rename('cutoff_date').reset_index()  #cutoff dates for every user
+
     def load_members_train(self):
         members = pd.read_csv(self.config.members_path) #contains member registration details
         train = pd.read_csv(self.config.train_path)     #classification train data (churn Y/n)
@@ -29,7 +36,11 @@ class FeatureEngineering:
         transactions = pd.read_csv(self.config.transactions_path)
         transactions = transactions.sort_values(['msno', 'transaction_date'])
 
-        transanction_agg = transactions.groupby('msno').agg(
+        transactions = transactions.merge(self.get_feb_2017_expirations(), on='msno', how='left')   #cutoff dates joined to every row in transactions
+
+        pre_cutoff_data = transactions[transactions['transaction_date'] <= transactions['cutoff_date']]  #all other users that in the cutoff window are not considered
+
+        transanction_agg = pre_cutoff_data.groupby('msno').agg(
             transanction_count = ('msno', 'count'),                      #no. of transactions per user
             first_transaction_date = ('transaction_date', 'min'),
             last_transaction_date = ('transaction_date', 'max'),
@@ -45,7 +56,13 @@ class FeatureEngineering:
     def aggregate_user_logs(self):
         chunks = []
 
+        cutoff_df = self.get_feb_2017_expirations()
+
         for chunk in pd.read_csv(self.config.user_logs_path, chunksize=1_000_000):
+            chunk = chunk.merge(cutoff_df, on='msno', how= 'left')
+
+            chunk = chunk[chunk['date'] <= chunk['cutoff_date']]
+            
             agg_chunk = chunk.groupby('msno').agg(
                 total_secs = ('total_secs', 'sum'),     #total no. of seconds of music listened per user
                 num_unq = ('num_unq', 'sum'),           #no. of unique songs listened by an user
