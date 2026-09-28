@@ -15,6 +15,7 @@ class FeatureEngineeringConfig:
     transactions_path: str = os.path.join('data', 'raw', 'kkbox', 'transactions_v2.csv')
     user_logs_path: str = os.path.join('data', 'raw', 'kkbox', 'user_logs_v2.csv')
     output_path: str = os.path.join('artifacts', 'kkbox_final.parquet')
+    feature_cutoff: int = 20170301 #cutoff added after analysing the dataset to confirm that transactions after March 2017 were reinstating the original churn label
 
 class FeatureEngineering:
     def __init__(self):
@@ -34,6 +35,8 @@ class FeatureEngineering:
 
     def aggregate_transactions(self):
         transactions = pd.read_csv(self.config.transactions_path)
+
+        transactions = transactions[transactions['transaction_date'] < self.config.feature_cutoff] #apply the March cutoff to prevent data leak
         transactions = transactions.sort_values(['msno', 'transaction_date'])
 
         transactions = transactions.merge(self.get_feb_2017_expirations(), on='msno', how='left')   #cutoff dates joined to every row in transactions
