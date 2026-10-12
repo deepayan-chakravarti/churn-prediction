@@ -38,12 +38,8 @@ class FeatureEngineering:
 
         transactions = transactions[transactions['transaction_date'] < self.config.feature_cutoff] #apply the March cutoff to prevent data leak
         transactions = transactions.sort_values(['msno', 'transaction_date'])
-
-        transactions = transactions.merge(self.get_feb_2017_expirations(), on='msno', how='left')   #cutoff dates joined to every row in transactions
-
-        pre_cutoff_data = transactions[transactions['transaction_date'] <= transactions['cutoff_date']]  #all other users that in the cutoff window are not considered
-
-        transaction_agg = pre_cutoff_data.groupby('msno').agg(
+        
+        transaction_agg = transactions.groupby('msno').agg(
             transaction_count = ('msno', 'count'),                      #no. of transactions per user
             first_transaction_date = ('transaction_date', 'min'),
             last_transaction_date = ('transaction_date', 'max'),
