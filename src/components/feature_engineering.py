@@ -43,8 +43,8 @@ class FeatureEngineering:
 
         pre_cutoff_data = transactions[transactions['transaction_date'] <= transactions['cutoff_date']]  #all other users that in the cutoff window are not considered
 
-        transanction_agg = pre_cutoff_data.groupby('msno').agg(
-            transanction_count = ('msno', 'count'),                      #no. of transactions per user
+        transaction_agg = pre_cutoff_data.groupby('msno').agg(
+            transaction_count = ('msno', 'count'),                      #no. of transactions per user
             first_transaction_date = ('transaction_date', 'min'),
             last_transaction_date = ('transaction_date', 'max'),
             last_plan_days = ('payment_plan_days', 'last'),              #the no. of days the last plan was active per user
@@ -54,18 +54,15 @@ class FeatureEngineering:
             cancel_count = ('is_cancel', 'sum')                          #no. of times a user cancelled his plan
         ).reset_index()
 
-        return transanction_agg
+        return transaction_agg
 
     def aggregate_user_logs(self):
+
+        # the logs only cover March 2017 and partly overlap the renewal window
+        
         chunks = []
 
-        cutoff_df = self.get_feb_2017_expirations()
-
-        for chunk in pd.read_csv(self.config.user_logs_path, chunksize=1_000_000):
-            chunk = chunk.merge(cutoff_df, on='msno', how= 'left')
-
-            chunk = chunk[chunk['date'] <= chunk['cutoff_date']]
-            
+        for chunk in pd.read_csv(self.config.user_logs_path, chunksize=1_000_000):         
             agg_chunk = chunk.groupby('msno').agg(
                 total_secs = ('total_secs', 'sum'),     #total no. of seconds of music listened per user
                 num_unq = ('num_unq', 'sum'),           #no. of unique songs listened by an user
@@ -81,6 +78,14 @@ class FeatureEngineering:
         merged_data = train.merge(members, on = 'msno', how = 'left')
         merged_data = merged_data.merge(transaction_agg, on = 'msno', how = 'left')
         merged_data = merged_data.merge(user_logs_agg, on = 'msno', how = 'left')
+
+        merged_data['has_prior_transactions'] = merged_data['transaction_count'].notnull().astype(int) #creates a flag for user with and without pre_march history
+        merged_data['transaction_count'] = merged_data['transaction_count'].fillna(0) #treats NaN values and replaces them with 0
+        merged_data['cancel_count'] = merged_data['cancel_count'].fillna(0)
+
+        user_log_cols = ['total_secs', 'num_unq', 'num_100', 'days_active']
+        merged_data[user_log_cols] = merged_data[user_log_cols].fillna(0) #removes NaN values and replaces them with 0
+
         return merged_data
 
     def start_feature_engineering(self):
